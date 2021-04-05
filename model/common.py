@@ -80,3 +80,19 @@ class CommonCsvModel:
         :rtype list
         """
         return self.session.query(Dataset).all()
+
+    def get_row_wise_data(self) -> list:
+        """
+        table row wise data with key
+        :return: list of object
+        :rtype list
+        """
+        all_data = []
+        for data in self.table_all_data():
+            row = {}
+            for column in self.csv_columns_list:
+                row.update({
+                    column: getattr(data, column)
+                })
+            all_data.append(row)
+        return all_data

@@ -25,5 +25,5 @@ class TrainData(CommonCsvModel):
 
 if __name__ == '__main__':
     t = TrainData()
-    for i in t.table_all_data():
-        print(i)
+    data = t.get_row_wise_data()
+    print(data)
