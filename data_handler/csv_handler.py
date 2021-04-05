@@ -20,7 +20,7 @@ ideal_data = pandas.read_csv('../data/ideal.csv')
 # TODO : create class for train data and move all the function to that class
 train_data_col = list(train_data.columns.values.tolist())
 # create table
-Train_table = CommonCsvModel(colums=train_data_col, data=train_data, engine=ENGINE, session=session)
+Train_table = CommonCsvModel(data=train_data, engine=ENGINE, session=session, table_name='train_table')
 
 Train_table.create_table()
-Train_table.insert_data()
+# Train_table.insert_data()

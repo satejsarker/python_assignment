@@ -1,7 +1,6 @@
 from model import Session
 from model.schema import Test
 
-
 class Logic:
     def __init__(self, x, y):
         self.x = x
