@@ -25,3 +25,4 @@ class IdealData(CommonCsvModel):
 
 if __name__ == '__main__':
     t = IdealData()
+    print(t.get_row_wise_data())
