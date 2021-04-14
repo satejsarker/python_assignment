@@ -1,25 +1,32 @@
 import logging
+from sqlalchemy import create_engine
+from sqlalchemy.orm import create_session
 from sqlalchemy import Table, Column, Integer, MetaData, FLOAT, exc
 from sqlalchemy.orm import mapper
+
+DB_URL = "sqlite:///./data1.db"
+ENGINE = create_engine(DB_URL)
+session = create_session(bind=ENGINE, autocommit=True, autoflush=True)
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
 
 
-class Dataset(object):
-    pass
-
-
 class CommonCsvModel:
-    def __init__(self, data, engine, session, table_name):
+    def __init__(self, data,table_name, mapper_cls, table_config=None):
         self.data = data
-        self.engine = engine
+        self.engine = ENGINE
+        self.mapper_cls = mapper_cls
         self.metadata = MetaData(bind=self.engine)
         self.table_name = table_name
-        self.table = Table(self.table_name, self.metadata, Column('id', Integer, primary_key=True),
-                           *(Column(column, FLOAT) for column in self.csv_columns_list))
-        mapper(Dataset, self.table)
+        self.table = table_config or Table(self.table_name, self.metadata, Column('id', Integer, primary_key=True),
+                                           *(Column(column, FLOAT) for column in self.csv_columns_list))
+        mapper(self.mapper_cls, self.table)
         self.session = session
+        if self.table_name not in self.engine.table_names():
+            LOGGER.warning("New Table is creating")
+            self.create_table()
+            self.insert_data()
 
     @property
     def csv_columns_list(self) -> list:
@@ -32,16 +39,10 @@ class CommonCsvModel:
 
     def create_table(self):
         """
-        create table if doesn't exists
         :return: None
 
         """
-        if self.table_name not in self.engine.table_names():
-            LOGGER.warning("New Table is creating")
-            return self.metadata.create_all()
-        else:
-            LOGGER.warning("table is already there ")
-            return None
+        return self.metadata.create_all()
 
     def insert_data(self):
         """
@@ -51,7 +52,7 @@ class CommonCsvModel:
         try:
             insert_data = []
             for i, data in enumerate(self.csv_data_to_model()):
-                _obj = Dataset()
+                _obj = self.mapper_cls()
                 setattr(_obj, 'id', i)
                 for index, col in enumerate(self.csv_columns_list):
                     setattr(_obj, col, data[index])
@@ -79,7 +80,7 @@ class CommonCsvModel:
         :return: all the data from table
         :rtype list
         """
-        return self.session.query(Dataset).all()
+        return self.session.query(self.mapper_cls).all()
 
     def get_row_wise_data(self) -> list:
         """
