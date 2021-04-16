@@ -13,20 +13,26 @@ LOGGER.setLevel(logging.INFO)
 
 
 class CommonCsvModel:
-    def __init__(self, data,table_name, mapper_cls, table_config=None):
+    def __init__(self, data, table_name, mapper_cls, table_config=None, columns=None):
         self.data = data
         self.engine = ENGINE
         self.mapper_cls = mapper_cls
         self.metadata = MetaData(bind=self.engine)
         self.table_name = table_name
-        self.table = table_config or Table(self.table_name, self.metadata, Column('id', Integer, primary_key=True),
-                                           *(Column(column, FLOAT) for column in self.csv_columns_list))
+        table_columns = columns or self.csv_columns_list
+        table_columns.remove('x')
+        self.table = table_config or Table(self.table_name, self.metadata, Column('x', FLOAT, primary_key=True),
+                                           *(Column(column, FLOAT) for column in table_columns))
         mapper(self.mapper_cls, self.table)
         self.session = session
+
+    @property
+    def table_exists(self):
         if self.table_name not in self.engine.table_names():
             LOGGER.warning("New Table is creating")
             self.create_table()
-            self.insert_data()
+            return True
+        return False
 
     @property
     def csv_columns_list(self) -> list:
@@ -44,7 +50,15 @@ class CommonCsvModel:
         """
         return self.metadata.create_all()
 
-    def insert_data(self):
+    def insert_data(self, all_data) -> None:
+        try:
+            LOGGER.warning("inserted all data in {}".format(self.table_name))
+            return self.session.bulk_save_objects(objects=all_data)
+        except exc.IntegrityError as e:
+            LOGGER.error(e)
+            LOGGER.error("data already added in {} table ".format(self.table_name))
+
+    def insert_from_csv_data(self):
         """
         insert data into database
         :return:
@@ -53,13 +67,13 @@ class CommonCsvModel:
             insert_data = []
             for i, data in enumerate(self.csv_data_to_model()):
                 _obj = self.mapper_cls()
-                setattr(_obj, 'id', i)
                 for index, col in enumerate(self.csv_columns_list):
                     setattr(_obj, col, data[index])
                 insert_data.append(_obj)
             self.session.bulk_save_objects(objects=insert_data)
             LOGGER.warning("inserted all data in {}".format(self.table_name))
-        except exc.IntegrityError:
+        except exc.IntegrityError as e:
+            print(e)
             LOGGER.error("data already added in {} table ".format(self.table_name))
 
     def csv_data_to_model(self):
@@ -85,15 +99,13 @@ class CommonCsvModel:
     def get_row_wise_data(self) -> list:
         """
         table row wise data with key
-        :return: list of object
-        :rtype list
+        :return: return object of row
+        :rtype generator object
         """
-        all_data = []
         for data in self.table_all_data():
             row = {}
             for column in self.csv_columns_list:
                 row.update({
                     column: getattr(data, column)
                 })
-            all_data.append(row)
-        return all_data
+            yield row
