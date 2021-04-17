@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import create_session
 from sqlalchemy import Table, Column, Integer, MetaData, FLOAT, exc
 from sqlalchemy.orm import mapper
+import numpy
 
 DB_URL = "sqlite:///./data1.db"
 ENGINE = create_engine(DB_URL)
@@ -109,3 +110,14 @@ class CommonCsvModel:
                     column: getattr(data, column)
                 })
             yield row
+
+    def get_fn_wise_numpy_array(self):
+        """
+        :return: return  generator value of a row
+        """
+        for data in self.table_all_data():
+            arr = []
+            for column in self.csv_columns_list:
+                if column != "x":
+                    arr.append(getattr(data, column))
+            yield numpy.array(arr)

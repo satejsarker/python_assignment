@@ -1,5 +1,6 @@
 import logging
 import pandas
+import numpy
 from data_model import CommonCsvModel
 
 LOGGER = logging.getLogger(__name__)
@@ -89,21 +90,18 @@ class IdealData(CommonCsvModel, Helper):
 
 if __name__ == '__main__':
     train_fn = TrainData()
+
     ideal_fn = IdealData()
     chosen_fn = ChosenData()
     ch_fn = []
     for tr_data in train_fn.get_row_wise_data():
-        # print(train_data)
         _all_compare = []
         for t_data in train_fn.get_single_fn(train_fn.csv_columns_list, tr_data):
             choosed_fn = []
-            for ideal_data_set in ideal_fn.get_row_wise_data():
-                for i_data in ideal_fn.get_single_fn(ideal_fn.csv_columns_list,
-                                                     ideal_data_set):
-                    # if t_data.get("x") == i_data.get("x"):
-                    choosed_fn.append(train_fn.compare_with_fn(
-                        i_data.get("fn"), t_data.get("fn")))
-            _all_compare.append(min(choosed_fn))
+            for ideal_data_set in ideal_fn.get_fn_wise_numpy_array():
+                compare_arr = ideal_data_set - t_data["fn"]
+                choosed_fn.append(numpy.power(compare_arr, 2))
+            _all_compare.append(numpy.min(choosed_fn))
         ch_fn.append(chosen_fn.chosen_data(
             data=_all_compare,
             input=tr_data.get("x")))
