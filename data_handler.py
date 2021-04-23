@@ -167,6 +167,7 @@ if __name__ == '__main__':
     ideal_function_list.remove("x")
     train_fn_function_list = train_fn.csv_columns_list
     train_fn_function_list.remove("x")
+    chosen = []
     for t_column in train_fn_function_list:
         chosen_fn = None
         train_data = train_fn.get_column_data(t_column)
@@ -186,7 +187,5 @@ if __name__ == '__main__':
             else:
                 min_div = sum_delta_error
                 max_div = sum_delta_error
-        print([(t_column, chosen_fn, max_div)])
-        print(f"train data function {t_column}")
-        print(f"chosen ideal function {chosen_fn}")
-        print(f"max deviation value {max_div}")
+        chosen.append((t_column, chosen_fn, max_div))
+    print(f"chosen function ", chosen)
