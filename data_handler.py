@@ -10,12 +10,13 @@ from sqlalchemy.orm import mapper
 
 train_data = pandas.read_csv('./train.csv')
 ideal_data = pandas.read_csv('./ideal.csv')
+test_data = pandas.read_csv('./test.csv')
 DB_URL = "sqlite:///./data1.db"
 ENGINE = create_engine(DB_URL)
 session = create_session(bind=ENGINE, autocommit=True, autoflush=True)
 
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
+LOGGER = logging.getLogger("Python assigment")
+logging.basicConfig(level=logging.INFO)
 
 
 class TrainDataset(object):
@@ -85,6 +86,18 @@ class CommonModel:
         all_value = self.session.query(getattr(self.mapper_class, column)).all()
         return numpy.array(list(chain(*all_value)))
 
+    def get_fn_val_by_input(self, x_input: float, y_idea: str) -> float:
+        """
+        get corresponding y value from table for input x
+        :param x_input: x value for search
+        :param y_idea: y column name
+        :return: function value for corresponding x
+        :rtype: float
+        """
+        return (self.session.query(getattr(self.mapper_class, y_idea))
+            .where(getattr(self.mapper_class, "x") == x_input)
+            .one()[0])
+
     def table_all_data(self) -> list:
         """
         select all data from table
@@ -95,16 +108,17 @@ class CommonModel:
 
 
 class CommonCsvModel(CommonModel):
-    def __init__(self, data, table_name, mapper_cls, table_config=None, columns=None):
+    def __init__(self, data, table_name=None, mapper_cls=None, table_config=None, columns=None):
         self.data = data
         table_column = self.data.columns.tolist()
         table_column.remove("x")
-        super().__init__(
-            table_name=table_name,
-            table_columns=table_column,
-            mapper_cls=mapper_cls
+        if table_name and mapper_cls:
+            super().__init__(
+                table_name=table_name,
+                table_columns=table_column,
+                mapper_cls=mapper_cls
 
-        )
+            )
 
     @property
     def csv_columns_list(self) -> list:
@@ -122,7 +136,7 @@ class CommonCsvModel(CommonModel):
         """
         try:
             insert_data = []
-            for i, data in enumerate(self.csv_data_to_model()):
+            for i, data in enumerate(self.csv_data()):
                 _obj = self.mapper_class()
                 for index, col in enumerate(self.csv_columns_list):
                     setattr(_obj, col, data[index])
@@ -130,10 +144,9 @@ class CommonCsvModel(CommonModel):
             self.session.bulk_save_objects(objects=insert_data)
             LOGGER.warning("inserted all data in {}".format(self.table_name))
         except exc.IntegrityError as e:
-            print(e)
             LOGGER.error("data already added in {} table ".format(self.table_name))
 
-    def csv_data_to_model(self):
+    def csv_data(self):
         """
         CSV data extraction from row
 
@@ -152,40 +165,71 @@ if __name__ == '__main__':
         data=train_data,
         columns=train_data.columns.tolist(),
         mapper_cls=TrainDataset)
-    train_fn.create_table()
-    if train_fn.table_exists:
+
+    if not train_fn.table_exists:
+        train_fn.create_table()
+    else:
         train_fn.insert_from_csv_data()
     ideal_fn = CommonCsvModel(
         table_name="ideal",
         data=ideal_data,
         columns=ideal_data.columns.tolist(),
         mapper_cls=IdealDataset)
-    if ideal_fn.table_exists:
+    if not ideal_fn.table_exists:
+        ideal_fn.create_table()
+    else:
         ideal_fn.insert_from_csv_data()
-    ideal_fn.create_table()
     ideal_function_list = ideal_fn.csv_columns_list
     ideal_function_list.remove("x")
     train_fn_function_list = train_fn.csv_columns_list
     train_fn_function_list.remove("x")
     chosen = []
+    # print(ideal_fn.get_fn_val_by_input(x_input=19.5, y_idea="y39"))
     for t_column in train_fn_function_list:
         chosen_fn = None
-        train_data = train_fn.get_column_data(t_column)
+        train_data = train_fn.get_column_data(t_column)  # y1,y2,y3,y4
         min_div = None
         max_div = None
+        # mean_value = train_data.sum() / len(train_data)
+        # t_polulation = (train_data - mean_value)
+        # stand deviation
+        # t_stand_deviation=numpy.power((train_data-mean_value),2)
         for i_column in ideal_function_list:
             ideal_data = ideal_fn.get_column_data(i_column)
-            system_error = numpy.power((train_data - ideal_data), 2)
-            max_deviation = system_error.max()
-            sum_delta_error = system_error.sum()
+            # ideal_mean = ideal_data.sum() / len(ideal_data)
+            # i_p = (ideal_data- ideal_mean)
+            deviation = numpy.absolute(train_data - ideal_data)  # delta
+            system_error = numpy.power(deviation, 2)
+            # system_error = t_polulation*i_p # Cov(train(yn-mean)*ideal(yn-mean))
+            max_deviation = deviation.max()  # max  delta value (yi-yi^)^2
+            sum_delta_error = system_error.sum()  # sum of delta
             if max_div is not None and min_div is not None:
                 if min_div >= sum_delta_error:
-                    min_div = max_deviation
+                    min_div = sum_delta_error
                     chosen_fn = i_column
-                if sum_delta_error >= max_div:
+                if max_deviation >= max_div:
                     max_div = max_deviation
             else:
                 min_div = sum_delta_error
-                max_div = sum_delta_error
+                max_div = max_deviation
         chosen.append((t_column, chosen_fn, max_div))
-    print(f"chosen function ", chosen)
+    LOGGER.info("chosen function {}".format(chosen))
+
+    test_data = CommonCsvModel(
+        data=test_data,
+        mapper_cls=None
+    )
+    test_data_deviation = []
+    for test in test_data.csv_data():
+        x, y = test
+        for chosen_data in chosen:
+            train_data, chosen_ideal_fn, max_deviation = chosen_data
+            ideal_mapped_data = ideal_fn.get_fn_val_by_input(x, chosen_ideal_fn)
+            deviation = numpy.absolute(y - ideal_mapped_data)
+            if deviation <= (max_deviation*numpy.sqrt(2)):
+                print(f"test_data can tested {deviation},{numpy.sqrt(max_deviation)}")
+                test_data_deviation.append([x, y, deviation])
+                break
+            else:
+                print(f"test data {x} cant be mapped")
+    LOGGER.info(f"number of mapped test data {len(test_data_deviation)}")
