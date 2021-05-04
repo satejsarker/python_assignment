@@ -70,7 +70,7 @@ class CommonModel:
 
         :return: True if table exists
         """
-        if self.table_name in self.metadata.tables.keys():
+        if self.table_name in self.engine.table_names():
             LOGGER.warning("table exits")
             return True
         return False
@@ -168,6 +168,7 @@ if __name__ == '__main__':
 
     if not train_fn.table_exists:
         train_fn.create_table()
+        train_fn.insert_from_csv_data()
     else:
         train_fn.insert_from_csv_data()
     ideal_fn = CommonCsvModel(
@@ -177,6 +178,7 @@ if __name__ == '__main__':
         mapper_cls=IdealDataset)
     if not ideal_fn.table_exists:
         ideal_fn.create_table()
+        ideal_fn.insert_from_csv_data()
     else:
         ideal_fn.insert_from_csv_data()
     ideal_function_list = ideal_fn.csv_columns_list
@@ -227,9 +229,9 @@ if __name__ == '__main__':
             ideal_mapped_data = ideal_fn.get_fn_val_by_input(x, chosen_ideal_fn)
             deviation = numpy.absolute(y - ideal_mapped_data)
             if deviation <= (max_deviation*numpy.sqrt(2)):
-                print(f"test_data can tested {deviation},{numpy.sqrt(max_deviation)}")
+                LOGGER.info(f"test_data can tested {deviation},{numpy.sqrt(max_deviation)}")
                 test_data_deviation.append([x, y, deviation])
                 break
             else:
-                print(f"test data {x} cant be mapped")
+                LOGGER.info(f"test data {x} cant be mapped")
     LOGGER.info(f"number of mapped test data {len(test_data_deviation)}")
