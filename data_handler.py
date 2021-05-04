@@ -61,8 +61,7 @@ class CommonModel:
             LOGGER.warning("inserted all data in {}".format(self.table_name))
             return self.session.bulk_save_objects(objects=all_data)
         except exc.IntegrityError as e:
-            LOGGER.error(e)
-            LOGGER.error("data already added in {} table ".format(self.table_name))
+            LOGGER.warning("data already added in {} table ".format(self.table_name))
 
     @property
     def table_exists(self):
@@ -144,7 +143,7 @@ class CommonCsvModel(CommonModel):
             self.session.bulk_save_objects(objects=insert_data)
             LOGGER.warning("inserted all data in {}".format(self.table_name))
         except exc.IntegrityError as e:
-            LOGGER.error("data already added in {} table ".format(self.table_name))
+            LOGGER.warning("data already added in {} table ".format(self.table_name))
 
     def csv_data(self):
         """
@@ -194,7 +193,7 @@ if __name__ == '__main__':
         max_div = None
         for i_column in ideal_function_list:
             ideal_data = ideal_fn.get_column_data(i_column)
-            deviation = train_data - ideal_data  # delta
+            deviation = numpy.subtract(train_data,ideal_data)  # delta
             system_error = numpy.square(deviation)
             max_deviation = numpy.absolute(deviation).max()  # max  delta value (yt-yi)
             sum_delta_error = system_error.sum()  # sum of delta
