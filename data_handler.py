@@ -192,18 +192,11 @@ if __name__ == '__main__':
         train_data = train_fn.get_column_data(t_column)  # y1,y2,y3,y4
         min_div = None
         max_div = None
-        # mean_value = train_data.sum() / len(train_data)
-        # t_polulation = (train_data - mean_value)
-        # stand deviation
-        # t_stand_deviation=numpy.power((train_data-mean_value),2)
         for i_column in ideal_function_list:
             ideal_data = ideal_fn.get_column_data(i_column)
-            # ideal_mean = ideal_data.sum() / len(ideal_data)
-            # i_p = (ideal_data- ideal_mean)
-            deviation = numpy.absolute(train_data - ideal_data)  # delta
-            system_error = numpy.power(deviation, 2)
-            # system_error = t_polulation*i_p # Cov(train(yn-mean)*ideal(yn-mean))
-            max_deviation = deviation.max()  # max  delta value (yi-yi^)^2
+            deviation = train_data - ideal_data  # delta
+            system_error = numpy.square(deviation)
+            max_deviation = numpy.absolute(deviation).max()  # max  delta value (yt-yi)
             sum_delta_error = system_error.sum()  # sum of delta
             if max_div is not None and min_div is not None:
                 if min_div >= sum_delta_error:
@@ -229,8 +222,8 @@ if __name__ == '__main__':
             ideal_mapped_data = ideal_fn.get_fn_val_by_input(x, chosen_ideal_fn)
             deviation = numpy.absolute(y - ideal_mapped_data)
             if deviation <= (max_deviation*numpy.sqrt(2)):
-                LOGGER.info(f"test_data can tested {deviation},{numpy.sqrt(max_deviation)}")
-                test_data_deviation.append([x, y, deviation])
+                test_data_deviation.append([x, y, chosen_ideal_fn,deviation])
+                LOGGER.info([x, y, chosen_ideal_fn,deviation])
                 break
             else:
                 LOGGER.info(f"test data {x} cant be mapped")
