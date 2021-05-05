@@ -47,8 +47,10 @@ class CommonModel:
         :return: None
 
         """
-        if not self.table_exists:
-            self.metadata.create_all()
+        try:
+            return self.metadata.create_all()
+        except Exception as e:
+            print(e)
 
     def insert_data(self, all_data: list) -> None:
         """
@@ -60,7 +62,7 @@ class CommonModel:
         try:
             LOGGER.warning("inserted all data in {}".format(self.table_name))
             return self.session.bulk_save_objects(objects=all_data)
-        except exc.IntegrityError as e:
+        except exc.IntegrityError:
             LOGGER.warning("data already added in {} table ".format(self.table_name))
 
     @property
@@ -69,7 +71,8 @@ class CommonModel:
 
         :return: True if table exists
         """
-        if self.table_name in self.engine.table_names():
+        table_exists = self.table_name in self.engine.table_names()
+        if table_exists:
             LOGGER.warning("table exits")
             return True
         return False
@@ -142,7 +145,7 @@ class CommonCsvModel(CommonModel):
                 insert_data.append(_obj)
             self.session.bulk_save_objects(objects=insert_data)
             LOGGER.warning("inserted all data in {}".format(self.table_name))
-        except exc.IntegrityError as e:
+        except exc.IntegrityError:
             LOGGER.warning("data already added in {} table ".format(self.table_name))
 
     def csv_data(self):
@@ -164,7 +167,6 @@ if __name__ == '__main__':
         data=train_data,
         columns=train_data.columns.tolist(),
         mapper_cls=TrainDataset)
-
     if not train_fn.table_exists:
         train_fn.create_table()
         train_fn.insert_from_csv_data()
@@ -189,22 +191,23 @@ if __name__ == '__main__':
     for t_column in train_fn_function_list:
         chosen_fn = None
         train_data = train_fn.get_column_data(t_column)  # y1,y2,y3,y4
-        min_div = None
+        min_sum_sqr = None
         max_div = None
         for i_column in ideal_function_list:
             ideal_data = ideal_fn.get_column_data(i_column)
-            deviation = numpy.subtract(train_data,ideal_data)  # delta
+
+            deviation = numpy.absolute(train_data - ideal_data)  # delta
             system_error = numpy.square(deviation)
-            max_deviation = numpy.absolute(deviation).max()  # max  delta value (yt-yi)
+            max_deviation = deviation.max()  # max  delta value (yi-yi^)^2
             sum_delta_error = system_error.sum()  # sum of delta
-            if max_div is not None and min_div is not None:
-                if min_div >= sum_delta_error:
-                    min_div = sum_delta_error
+            if max_div is not None and min_sum_sqr is not None:
+                if min_sum_sqr >= sum_delta_error:
+                    min_sum_sqr = sum_delta_error
                     chosen_fn = i_column
                 if max_deviation >= max_div:
                     max_div = max_deviation
             else:
-                min_div = sum_delta_error
+                min_sum_sqr = sum_delta_error
                 max_div = max_deviation
         chosen.append((t_column, chosen_fn, max_div))
     LOGGER.info("chosen function {}".format(chosen))
@@ -220,10 +223,10 @@ if __name__ == '__main__':
             train_data, chosen_ideal_fn, max_deviation = chosen_data
             ideal_mapped_data = ideal_fn.get_fn_val_by_input(x, chosen_ideal_fn)
             deviation = numpy.absolute(y - ideal_mapped_data)
-            if deviation <= (max_deviation*numpy.sqrt(2)):
-                test_data_deviation.append([x, y, chosen_ideal_fn,deviation])
-                LOGGER.info([x, y, chosen_ideal_fn,deviation])
+            if deviation <= (max_deviation * numpy.sqrt(2)):
+                test_data_deviation.append([x, y,chosen_ideal_fn, deviation])
                 break
             else:
-                LOGGER.info(f"test data {x} cant be mapped")
+                print(f"test data {x} cant be mapped")
     LOGGER.info(f"number of mapped test data {len(test_data_deviation)}")
+    print(test_data_deviation)
