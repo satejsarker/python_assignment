@@ -34,6 +34,9 @@ class IdealDataset(object):
 
 
 class DataVisualization:
+    """
+    Data visualization class
+    """
 
     @staticmethod
     def ols_data(column_a, column_b, file_name):
@@ -47,6 +50,9 @@ class DataVisualization:
 
 
 class TestMapperDataset(Base):
+    """
+    Test table mapper class
+    """
     __tablename__ = "mapped_test_data"
     x = Column(FLOAT, primary_key=True)
     y = Column(FLOAT, primary_key=True)
@@ -65,7 +71,16 @@ class TestMapperDataset(Base):
 
 
 class CommonModel:
-    def __init__(self, table_name: str, table_columns: list, mapper_cls, table_config=None):
+    """
+    common sql handler class
+    method included :
+            create_table
+            get data
+            table existence
+    """
+
+    def __init__(self, table_name: str, table_columns: list, mapper_cls,
+                 table_config=None):
         self.table_name = table_name
         self.table_columns = table_columns
         self.mapper_class = mapper_cls
@@ -78,12 +93,15 @@ class CommonModel:
         if table_config is not None:
             self.table = table_config
         else:
-            self.table = table_config or Table(self.table_name, self.metadata, Column('x', FLOAT, primary_key=True),
-                                               *(Column(column, FLOAT) for column in table_columns))
+            self.table = table_config or Table(self.table_name, self.metadata,
+                                               Column('x', FLOAT, primary_key=True),
+                                               *(Column(column, FLOAT) for column in
+                                                 table_columns))
         mapper(self.mapper_class, self.table)
 
     def create_table(self) -> None:
         """
+        Create new table
         :return: None
 
         """
@@ -94,7 +112,7 @@ class CommonModel:
 
     def insert_data(self, all_data: list) -> None:
         """
-
+        Insert data in the table
         :param all_data: all object data list
         :type all_data: list
         :return: None
@@ -125,7 +143,7 @@ class CommonModel:
     @property
     def table_exists(self):
         """
-
+        Check whether table exists or not
         :return: True if table exists
         """
         table_exists = self.table_name in self.engine.table_names()
@@ -136,7 +154,7 @@ class CommonModel:
 
     def get_column_data(self, column: str) -> list:
         """
-
+        Column wise data extraction
         :param column: table column name
         :type column: str
         :return: column numpy array
@@ -167,6 +185,10 @@ class CommonModel:
 
 
 class CommonCsvModel(CommonModel):
+    """
+    Common CSV model handler
+    """
+
     def __init__(self, data, table_name=None, mapper_cls=None):
         self.data = data
         table_column = self.data.columns.tolist()
@@ -215,32 +237,38 @@ class CommonCsvModel(CommonModel):
 
 
 if __name__ == '__main__':
+    # initialize train data in common CSV model
     train_fn = CommonCsvModel(
         table_name="train",
         data=train_data,
-
         mapper_cls=TrainDataset)
+    # check train table existance
     if not train_fn.table_exists:
         train_fn.create_table()
         train_fn.insert_from_csv_data()
     else:
+        # insert data in train table
         train_fn.insert_from_csv_data()
+    # initialize ideal table
     ideal_fn = CommonCsvModel(
         table_name="ideal",
         data=ideal_data,
         mapper_cls=IdealDataset)
+    # ideal table existence check
     if not ideal_fn.table_exists:
         ideal_fn.create_table()
         ideal_fn.insert_from_csv_data()
     else:
         ideal_fn.insert_from_csv_data()
+    # As X value is same in train and ideal removing X value from csv data
     ideal_function_list = ideal_fn.csv_columns_list
     ideal_function_list.remove("x")
     train_fn_function_list = train_fn.csv_columns_list
     train_fn_function_list.remove("x")
+    # chosen list initialized
     chosen = []
     metadata.create_all(bind=ENGINE)
-    # print(ideal_fn.get_fn_val_by_input(x_input=19.5, y_idea="y39"))
+    # comparing train data with  ideal data from sql table
     for t_column in train_fn_function_list:
         chosen_fn = None
         train_data = train_fn.get_column_data(t_column)  # y1,y2,y3,y4
@@ -248,15 +276,17 @@ if __name__ == '__main__':
         max_div = None
         for i_column in ideal_function_list:
             ideal_data = ideal_fn.get_column_data(i_column)
-
+            # calculate delta value (train data column - ideal column)
             deviation = np.absolute(train_data - ideal_data)  # delta
-            system_error = np.square(deviation)
+            system_error = np.square(deviation) # get squired of deviation
             max_deviation = deviation.max()  # max  delta value (yi-yi^)^2
             sum_delta_error = system_error.sum()  # sum of delta
+            # if max and min sum square is empty initialized
             if max_div is not None and min_sum_sqr is not None:
                 if min_sum_sqr >= sum_delta_error:
                     min_sum_sqr = sum_delta_error
                     chosen_fn = i_column
+                # compare with previous max_deviation
                 if max_deviation >= max_div:
                     max_div = max_deviation
             else:
@@ -270,6 +300,7 @@ if __name__ == '__main__':
         ideal_data = ideal_fn.get_column_data(chosen_ideal_fn)
         train_data = train_fn.get_column_data(train_data)
         DataVisualization.ols_data(train_data, ideal_data, chosen_ideal_fn)
+    # initialized test data
     test_data = CommonCsvModel(
         data=test_data,
         mapper_cls=None
@@ -277,6 +308,7 @@ if __name__ == '__main__':
     # creating mapped test table
     t = TestMapperDataset()
     test_data_deviation = []
+    # comparing with test data and chosen ideal function
     for test in test_data.csv_data():
         x, y = test
         for chosen_data in chosen:
@@ -284,12 +316,13 @@ if __name__ == '__main__':
             ideal_mapped_data = ideal_fn.get_fn_val_by_input(x, chosen_ideal_fn)
             deviation = np.absolute(y - ideal_mapped_data)
             if deviation <= (max_deviation * np.sqrt(2)):
-                obj = TestMapperDataset(x=x, y=y, ideal_fn_data=ideal_mapped_data, deviation=deviation)
-                # test_data_deviation.append([x, y, ideal_mapped_data, deviation])
+                obj = TestMapperDataset(x=x, y=y, ideal_fn_data=ideal_mapped_data,
+                                        deviation=deviation)
                 test_data_deviation.append(obj)
                 break
             else:
-                LOGGER.info(f"test data {x} cant be mapped")
+                LOGGER.info(
+                    f"test data {x} can't be mapped by {ideal_mapped_data} chosen function")
     LOGGER.info(f"number of mapped test data {len(test_data_deviation)}")
-
+    # insert mapped data
     TestMapperDataset.insert_data(test_data_deviation)
