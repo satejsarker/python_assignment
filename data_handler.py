@@ -203,7 +203,6 @@ class CommonCsvModel(CommonModel):
 
             )
 
-    @property
     def csv_columns_list(self) -> list:
         """
         csv columns list
@@ -220,7 +219,7 @@ class CommonCsvModel(CommonModel):
         insert_data = []
         for i, data in enumerate(self.csv_data()):
             _obj = self.mapper_class()
-            for index, col in enumerate(self.csv_columns_list):
+            for index, col in enumerate(self.csv_columns_list()):
                 setattr(_obj, col, data[index])
             insert_data.append(_obj)
         self.insert_data(all_data=insert_data)
@@ -263,9 +262,9 @@ if __name__ == '__main__':
     else:
         ideal_fn.insert_from_csv_data()
     # As X value is same in train and ideal removing X value from csv data
-    ideal_function_list = ideal_fn.csv_columns_list
+    ideal_function_list = ideal_fn.csv_columns_list()
     ideal_function_list.remove("x")
-    train_fn_function_list = train_fn.csv_columns_list
+    train_fn_function_list = train_fn.csv_columns_list()
     train_fn_function_list.remove("x")
     # chosen list initialized
     chosen = []
