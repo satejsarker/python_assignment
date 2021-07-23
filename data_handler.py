@@ -39,11 +39,13 @@ class DataVisualization:
     """
 
     @staticmethod
-    def ols_data(column_a, column_b, file_name):
+    def ols_data(column_a, column_b, file_name,dataset):
         _A = np.vstack([column_a, np.ones(len(column_a))]).T
         m, c = np.linalg.lstsq(_A, column_b, rcond=None)[0]
-        _ = plt.plot(column_a, column_b, '*', label='train data', markersize=10)
-        _ = plt.plot(column_a, m * column_a + c, 'r', label='ideal data')
+        _ = plt.plot(column_a, column_b, '*', label=f'train dataset {dataset[0]}',
+                     markersize=10)
+        _ = plt.plot(column_a, m * column_a + c, 'r', label=f'ideal dataset '
+                                                            f':{dataset[1]}')
         plt.legend()
         plt.savefig(f"{file_name}.png")
         plt.show()
@@ -296,10 +298,11 @@ if __name__ == '__main__':
     LOGGER.info("chosen function {}".format(chosen))
     # visualizations after OLS of train data with ideal data
     for chosen_data in chosen:
-        train_data, chosen_ideal_fn, max_deviation = chosen_data
+        train_data_columns, chosen_ideal_fn, max_deviation = chosen_data
         ideal_data = ideal_fn.get_column_data(chosen_ideal_fn)
-        train_data = train_fn.get_column_data(train_data)
-        DataVisualization.ols_data(train_data, ideal_data, chosen_ideal_fn)
+        train_data = train_fn.get_column_data(train_data_columns)
+        DataVisualization.ols_data(train_data, ideal_data, chosen_ideal_fn,
+                                   dataset=(train_data_columns, chosen_ideal_fn))
     # initialized test data
     test_data = CommonCsvModel(
         data=test_data,
