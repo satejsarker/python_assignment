@@ -7,11 +7,12 @@ from typing import ByteString
 import pandas
 from _pytest.compat import cached_property
 
-from data_handler import CommonCsvModel, TrainDataset, CommonModel
+from data_handler import CommonCsvModel
 
 
 class Dummy(object):
     pass
+
 
 class TestDataModel:
     @cached_property
